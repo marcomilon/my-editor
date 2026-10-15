@@ -4,6 +4,7 @@ My Neovim and tmux configs.
 
 - `nvim/`: a minimal, VS Code-like Neovim setup in a single `init.lua`
 - `tmux/`: `tmux.conf`
+- `zsh/ws.zsh`: the `ws` command, which opens a project in a tmux workspace
 
 ## Requirements
 
@@ -54,3 +55,19 @@ Prefix is the default `Ctrl-b`.
 | `prefix H J K L` | Resize pane |
 | `prefix r` | Reload config |
 | `prefix Esc` | Copy mode (`v` select, `y` copy) |
+
+## Workspace (`ws`)
+
+`ws` opens a project in a tmux session named after its folder: nvim top-left, a shell bottom-left, and claude on the right. If the session already exists, it switches to it instead.
+
+```sh
+ws              # current folder
+ws my-editor    # ~/Code/my-editor or ~/Code/*/my-editor
+ws ~/some/path  # any existing folder
+```
+
+Tab completion lists the projects under `~/Code`. To enable it, add this to `~/.zshrc`:
+
+```sh
+source ~/Code/my-editor/zsh/ws.zsh
+```
