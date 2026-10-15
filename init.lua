@@ -183,6 +183,25 @@ require("lazy").setup({
   },
 
   {
+    -- Live Markdown preview in the browser.
+    "iamcco/markdown-preview.nvim",
+    cmd = { "MarkdownPreview", "MarkdownPreviewStop", "MarkdownPreviewToggle" },
+    ft = { "markdown" },
+    build = "cd app && npx --yes yarn install",
+    keys = {
+      { "<leader>mp", "<cmd>MarkdownPreviewToggle<cr>", ft = "markdown", desc = "Toggle Markdown preview" },
+    },
+  },
+
+  {
+    -- Render Markdown nicely inside the buffer.
+    "MeanderingProgrammer/render-markdown.nvim",
+    ft = { "markdown" },
+    dependencies = { "nvim-treesitter/nvim-treesitter", "nvim-tree/nvim-web-devicons" },
+    opts = {},
+  },
+
+  {
     -- Change markers next to line numbers.
     "lewis6991/gitsigns.nvim",
     opts = {
@@ -219,6 +238,30 @@ require("lazy").setup({
     },
     config = function()
       local actions = require("diffview.actions")
+
+      -- Diffview only refreshes on tab enter, saves inside Neovim and git index changes.
+      -- Also watch the working tree so edits from other programs show up right away.
+      local watcher, debounce
+      local function stop_watching()
+        if watcher then watcher:stop(); watcher:close(); watcher = nil end
+        if debounce then debounce:stop(); debounce:close(); debounce = nil end
+      end
+      local function start_watching(root)
+        stop_watching()
+        watcher, debounce = vim.uv.new_fs_event(), vim.uv.new_timer()
+        watcher:start(root, { recursive = true }, function(err, path)
+          if err or not path or path:match("^%.git/") or path:match("node_modules/") then return end
+          debounce:start(300, 0, vim.schedule_wrap(function()
+            if require("diffview.lib").get_current_view() then vim.cmd("DiffviewRefresh") end
+          end))
+        end)
+      end
+      vim.api.nvim_create_autocmd("FocusGained", {
+        callback = function()
+          if require("diffview.lib").get_current_view() then vim.cmd("DiffviewRefresh") end
+        end,
+      })
+
       require("diffview").setup({
         enhanced_diff_hl = true,
         view = {
@@ -231,6 +274,7 @@ require("lazy").setup({
         hooks = {
           -- Don't auto-open the first changed file; diffs open only when picked from the list.
           view_opened = function(view)
+            if view.adapter then start_watching(view.adapter.ctx.toplevel) end
             local panel = view.panel
             if not (view.files and panel and panel.next_file) then return end
             local picked = false
@@ -246,6 +290,7 @@ require("lazy").setup({
               end
             end
           end,
+          view_closed = stop_watching,
         },
         keymaps = {
           view = {
